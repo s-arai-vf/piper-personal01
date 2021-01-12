@@ -1,6 +1,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
+# System
+import os, sys, json, yaml
+import time as t
+
 # GPIO
 import board
 import adafruit_dht
@@ -9,74 +13,86 @@ dhtDevice = adafruit_dht.DHT22(board.D4, use_pulseio=False)
 # MQTT
 from awscrt import io, mqtt, auth, http
 from awsiot import mqtt_connection_builder
-import time as t
-import json
 
-# Define ENDPOINT, CLIENT_ID, PATH_TO_CERT, PATH_TO_KEY, PATH_TO_ROOT, MESSAGE, TOPIC, and RANGE
-ENDPOINT = "a3093y4vxcaaya-ats.iot.ap-northeast-1.amazonaws.com"
-CLIENT_ID = "testDevice"
-PATH_TO_CERT = "certificates/a362f0b2c7-certificate.pem.crt"
-PATH_TO_KEY = "certificates/a362f0b2c7-private.pem.key"
-PATH_TO_ROOT = "certificates/root.pem"
-TOPIC = "test/testing"
-RANGE = 9999
+# Log setting
+from logging import basicConfig, getLogger, DEBUG
+basicConfig(level=DEBUG)
+logger = getLogger( "<" + __file__ + ">")
+
+# Config Read
+path = "config.json"
+if(os.path.isfile(path)):
+    with open(path, "r") as obj:
+        config = json.load(obj)
+        logger.debug("Load %s" % path)
+else:
+    logger.error("%s load error" % path)
+    sys.exit()
+
+awsconfig = dict(
+        ENDPOINT = config["ENDPOINT"],
+        CLIENT_ID = config["CLIENT_ID"],
+        PATH_TO_CERT = config["PATH_TO_CERT"],
+        PATH_TO_KEY = config["PATH_TO_KEY"],
+        PATH_TO_ROOT = config["PATH_TO_ROOT"],
+        TOPIC = config["TOPIC"],
+        RANGE = config["RANGE"]
+    )
+
 
 # Spin up resources
 event_loop_group = io.EventLoopGroup(1)
 host_resolver = io.DefaultHostResolver(event_loop_group)
 client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
 mqtt_connection = mqtt_connection_builder.mtls_from_path(
-            endpoint=ENDPOINT,
-            cert_filepath=PATH_TO_CERT,
-            pri_key_filepath=PATH_TO_KEY,
+            endpoint=awsconfig["ENDPOINT"],
+            cert_filepath=awsconfig["PATH_TO_CERT"],
+            pri_key_filepath=awsconfig["PATH_TO_KEY"],
             client_bootstrap=client_bootstrap,
-            ca_filepath=PATH_TO_ROOT,
-            client_id=CLIENT_ID,
+            ca_filepath=awsconfig["PATH_TO_ROOT"],
+            client_id=awsconfig["CLIENT_ID"],
             clean_session=False,
             keep_alive_secs=6
             )
-print("Connecting to {} with client ID '{}'...".format(
-        ENDPOINT, CLIENT_ID))
+logger.info("Connecting to {} with client ID '{}'...".format(awsconfig["ENDPOINT"], awsconfig["CLIENT_ID"]))
 # Make the connect() call
 connect_future = mqtt_connection.connect()
 # Future.result() waits until a result is available
 connect_future.result()
-print("Connected!")
-# Publish message to server desired number of times.
+logger.info("Connected!")
 
-print('Begin Publish')
+logger.info('Begin Publish')
 #for i in range (RANGE):
 i = 0
-humidity = 0
-clientId="rasberrypi01"
-while i < RANGE:
+while i < awsconfig["RANGE"]:
   try:
-  ### Temp/Humidity Get
+    ### Temp/Humidity Get
     #temperature_c = dhtDevice.temperature
     humidity = None
     humidity = dhtDevice.humidity
-  ###
-    print(type(humidity))
     message = {
-            "clientId" : clientId,
+            "clientId" : awsconfig["CLIENT_ID"],
             "humidity" : humidity
             }
-    print("::: {:03} :::".format(i))
-    print(message)
+    logger.info("::: {:03} :::".format(i))
+    logger.debug(message)
     if humidity is not None:
-      mqtt_connection.publish(topic=TOPIC, payload=json.dumps(message), qos=mqtt.QoS.AT_LEAST_ONCE)
-      print("Published: '" + json.dumps(message) + "' to the topic: " + "'test/testing'")
+      mqtt_connection.publish(topic=awsconfig["TOPIC"], payload=json.dumps(message), qos=mqtt.QoS.AT_LEAST_ONCE)
+      logger.info("Published: '" + json.dumps(message) + "' to the topic: " + "'" + awsconfig["TOPIC"] + "'")
       i += 1
+
   except RuntimeError as error:
         # Errors happen fairly often, DHT's are hard to read, just keep going
-        print(error.args[0])
+        logger.error(error.args[0])
         t.sleep(1.0)
         continue
+
   except Exception as error:
         dhtDevice.exit()
         raise error
+
   t.sleep(1.0)
-print('Publish End')
+logger.info('Publish End')
 
 disconnect_future = mqtt_connection.disconnect()
 disconnect_future.result()
