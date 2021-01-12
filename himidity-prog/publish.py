@@ -68,7 +68,11 @@ def main():
     connect_future.result()
     logger.info("/_/_/_/Connected!/_/_/_/")
     logger.info("/_/_/_/Begin Publish/_/_/_/")
-    i = 0
+
+    # init
+    i = 1
+    timer = 5.0
+
     while True:
         try:
             ### Temp/Humidity Get
@@ -84,22 +88,26 @@ def main():
             if humidity is not None:
                 mqtt_connection.publish(topic=awsconfig["TOPIC"], payload=json.dumps(message), qos=mqtt.QoS.AT_LEAST_ONCE)
                 logger.info("Published: '" + json.dumps(message) + "' to the topic: " + "'" + awsconfig["TOPIC"] + "'")
-                i += 1
+                if(awsconfig["RANGE"] > 0):
+                    i += 1
     
         except RuntimeError as error:
             # Errors happen fairly often, DHT's are hard to read, just keep going
             logger.error(error.args[0])
-            t.sleep(1.0)
+            t.sleep(timer)
             continue
     
         except Exception as error:
             dhtDevice.exit()
             raise error
 
-        finally :
-            if(i > awsconfig["RANGE"]):
-                break
-            t.sleep(1.0)
+        else :
+            # 0 : Infinity Loop 
+            if(awsconfig["RANGE"] > 0):
+                if(i > awsconfig["RANGE"]):
+                    break
+
+            t.sleep(timer)
 
     logger.info('/_/_/_/Publish End/_/_/_/')
     disconnect_future = mqtt_connection.disconnect()
