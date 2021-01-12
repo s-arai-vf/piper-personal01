@@ -5,5 +5,5 @@
 	"PATH_TO_KEY":"certificates/a362f0b2c7-private.pem.key",
 	"PATH_TO_ROOT":"certificates/root.pem",
 	"TOPIC":"test/testing",
-	"RANGE":9999
+	"RANGE":9
 }
