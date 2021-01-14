@@ -1,0 +1,140 @@
+{
+    "detectorModelDefinition": {
+        "states": [
+            {
+                "stateName": "Lower",
+                "onInput": {
+                    "events": [],
+                    "transitionEvents": [
+                        {
+                            "eventName": "to_higher",
+                            "condition": "$input.Piper_input01.humidity >= 42",
+                            "actions": [
+                                {
+                                    "clearTimer": {
+                                        "timerName": "alert_timer"
+                                    }
+                                }
+                            ],
+                            "nextState": "Higher"
+                        },
+                        {
+                            "eventName": "to_alert",
+                            "condition": "timeout(\"alert_timer\")",
+                            "actions": [],
+                            "nextState": "alert"
+                        }
+                    ]
+                },
+                "onEnter": {
+                    "events": [
+                        {
+                            "eventName": "alert",
+                            "condition": "true",
+                            "actions": [
+                                {
+                                    "setTimer": {
+                                        "timerName": "alert_timer",
+                                        "seconds": 60,
+                                        "durationExpression": null
+                                    }
+                                },
+                                {
+                                    "setVariable": {
+                                        "variableName": "eve_humidity",
+                                        "value": "$input.Piper_input01.humidity"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "onExit": {
+                    "events": []
+                }
+            },
+            {
+                "stateName": "alert",
+                "onInput": {
+                    "events": [],
+                    "transitionEvents": [
+                        {
+                            "eventName": "to_higher",
+                            "condition": "$input.Piper_input01.humidity >= 42",
+                            "actions": [
+                                {
+                                    "clearTimer": {
+                                        "timerName": "alert_timer"
+                                    }
+                                }
+                            ],
+                            "nextState": "Higher"
+                        }
+                    ]
+                },
+                "onEnter": {
+                    "events": [
+                        {
+                            "eventName": "alert",
+                            "condition": "true",
+                            "actions": [
+                                {
+                                    "lambda": {
+                                        "functionArn": "arn:aws:lambda:ap-northeast-1:695825401164:function:Piper02"
+                                    }
+                                },
+                                {
+                                    "lambda": {
+                                        "functionArn": "arn:aws:lambda:ap-northeast-1:695825401164:function:Piper-humidity-Alarm"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "onExit": {
+                    "events": []
+                }
+            },
+            {
+                "stateName": "Higher",
+                "onInput": {
+                    "events": [],
+                    "transitionEvents": [
+                        {
+                            "eventName": "to_lower",
+                            "condition": "$input.Piper_input01.humidity < 42",
+                            "actions": [],
+                            "nextState": "Lower"
+                        }
+                    ]
+                },
+                "onEnter": {
+                    "events": [
+                        {
+                            "eventName": "check",
+                            "condition": "$input.Piper_input01.humidity >= 42",
+                            "actions": [
+                                {
+                                    "setVariable": {
+                                        "variableName": "eve_humidity",
+                                        "value": "$input.Piper_input01.humidity"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "onExit": {
+                    "events": []
+                }
+            }
+        ],
+        "initialStateName": "Higher"
+    },
+    "detectorModelDescription": null,
+    "detectorModelName": "Piper_model01",
+    "evaluationMethod": "BATCH",
+    "key": "clientId",
+    "roleArn": "arn:aws:iam::695825401164:role/service-role/iot-event-piper"
+}
